@@ -97,6 +97,7 @@ hr.rule {{ border:none; border-top:1px solid #E3E8EE; margin:.2rem 0 1.4rem; }}
 .stButton>button:hover {{ color:#fff; background:{NAVY}; }}
 .stButton>button[kind="primary"] {{ background:{RED}; border-color:{RED}; color:#fff; }}
 .stButton>button[kind="primary"]:hover {{ background:#b1271f; border-color:#b1271f; }}
+[data-testid="stPopover"] button {{ border-radius:999px; font-weight:600; }}
 .caveat {{ background:{SURFACE}; border-left:4px solid {RED}; border-radius:8px; padding:1rem 1.2rem; color:{INK}; font-size:.9rem; line-height:1.5; margin-top:.6rem; }}
 .card {{ background:{SURFACE}; border-radius:12px; padding:1.2rem 1.4rem; margin:.5rem 0; }}
 ul.matters {{ margin:.3rem 0 0; padding-left:1.1rem; color:{INK}; }}
@@ -245,10 +246,13 @@ def landing():
     if c1.button("Get started", type="primary", use_container_width=True, key="hero_start"):
         st.session_state.qidx = 0
         goto("intent")
-    if c2.button("Try an example", use_container_width=True, key="hero_example"):
-        st.session_state.answers = backend.list_examples()[3].copy()
-        st.session_state.intent = "explore"
-        goto("results")
+    with c2.popover("Try an example", use_container_width=True):
+        st.caption("Preview a real profile from each tier:")
+        for seg in [0, 2, 1, 3]:
+            if st.button(CONTENT[seg]["name"], use_container_width=True, key=f"ex_land_{seg}"):
+                st.session_state.answers = backend.list_examples()[seg].copy()
+                st.session_state.intent = "explore"
+                goto("results")
 
     st.markdown('<div class="statband">'
                 '<div><div class="v">4</div><div class="l">credit segments</div></div>'
@@ -493,11 +497,13 @@ def results():
         st.session_state.answers = backend.defaults()
         st.session_state.qidx = 0
         goto("landing")
-    if c2.button("Try another example", key="res_example"):
-        order = sorted(CONTENT)
-        nxt = order[(order.index(cid) + 1) % len(order)]
-        st.session_state.answers = backend.list_examples()[nxt].copy()
-        goto("results")
+    with c2.popover("Try an example", use_container_width=True):
+        st.caption("Jump to a profile from each tier:")
+        for seg in [0, 2, 1, 3]:
+            if st.button(CONTENT[seg]["name"], use_container_width=True, key=f"ex_res_{seg}"):
+                st.session_state.answers = backend.list_examples()[seg].copy()
+                st.session_state.intent = "explore"
+                goto("results")
     footer()
 
 
