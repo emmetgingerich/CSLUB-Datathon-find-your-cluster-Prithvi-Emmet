@@ -4,6 +4,10 @@
 
 Datathon 2026 · **Pillar 2 — Unsupervised ML ("Find Your Cluster")** · Team: Emmet & Prithvi
 
+## Contact:
+Emmet Gingerich: egingeri@lion.lmu.edu - (206) - 240- 7632
+Prithvi Prasad: prithvi11prasad@gmail.com - (661) - 202 - 7440
+
 ---
 
 ## What it is
