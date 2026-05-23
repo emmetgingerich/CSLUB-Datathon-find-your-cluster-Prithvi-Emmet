@@ -114,8 +114,52 @@ ul.matters li {{ margin:.35rem 0; line-height:1.45; }}
 .chip.cur {{ background:{NAVY}; color:#fff; border-color:{NAVY}; }}
 .chip.nxt {{ border-color:{RED}; color:{RED}; }}
 .arrow {{ color:#9AA9B5; font-weight:800; }}
+.insight-box {{ background:{SURFACE}; border-left:5px solid {NAVY}; border-radius:16px; padding:1.3rem 1.5rem; margin:.4rem 0 1rem; }}
+.insight-box .headline {{ color:{NAVY}; font-weight:900; font-size:1.2rem; margin:0 0 .6rem; }}
+.insight-box .body {{ color:{INK}; font-size:.93rem; line-height:1.55; margin-bottom:.8rem; }}
+.insight-box .tip-head {{ color:{NAVY}; font-weight:800; font-size:.9rem; margin:.7rem 0 .2rem; }}
+.insight-box ul {{ margin:.2rem 0 0; padding-left:1.1rem; }}
+.insight-box li {{ margin:.3rem 0; color:{INK}; line-height:1.45; font-size:.91rem; }}
 </style>
 """, unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+# Readable labels
+# ---------------------------------------------------------------------------
+QUESTION_LABELS = {
+    "A1":  "What is your gender?",
+    "A2":  "How old are you? (years)",
+    "A3":  "How many years have you been continuously employed? (years)",
+    "A4":  "What is your marital status?",
+    "A6":  "What best describes your occupation?",
+    "A7":  "How many years have you lived at your current address? (years)",
+    "A8":  "Are you currently employed?",
+    "A9":  "Do you have any prior credit defaults?",
+    "A10": "What is your total debt load? (thousands of dollars)",
+    "A11": "Do you have a driver's license?",
+    "A12": "What is your citizenship status?",
+    "A13": "What is your current credit card balance? (dollars)",
+    "A14": "What is your annual income? (dollars)",
+}
+
+READABLE_OPTIONS = {
+    "A1":  {0: "Male", 1: "Female"},
+    "A4":  {1: "Single", 2: "Married", 3: "Divorced / Widowed"},
+    "A6":  {
+        1: "Unemployed / Entry Level",
+        2: "Part-time / Temporary",
+        3: "Student",
+        4: "General / Clerical",
+        5: "Skilled Trade / Technical",
+        7: "Retired / Self-Employed",
+        8: "Professional / Managerial",
+        9: "Executive / Senior Management",
+    },
+    "A8":  {0: "No", 1: "Yes"},
+    "A9":  {0: "Yes, I have a prior default", 1: "No, I have no prior defaults"},
+    "A11": {0: "No", 1: "Yes"},
+    "A12": {1: "U.S. Citizen", 2: "Lawful Permanent Resident", 3: "Non-Immigrant Visa"},
+}
 
 # ---------------------------------------------------------------------------
 # State
@@ -125,23 +169,23 @@ st.session_state.setdefault("answers", backend.defaults())
 st.session_state.setdefault("intent", "explore")
 st.session_state.setdefault("qidx", 0)
 
-FRIENDLY = backend.friendly_labels()
 CAT_OPTS = backend.category_options()
 BINARY = set(backend.load_bundle()["binary_cols"])
-CATEG = set(backend.load_bundle()["categorical_cols"])
+CATEG  = set(backend.load_bundle()["categorical_cols"])
 
 RANGES = {"A2": (18.0, 90.0), "A3": (0.0, 30.0), "A7": (0.0, 30.0),
           "A10": (0.0, 70.0), "A13": (0.0, 2000.0), "A14": (0.0, 100001.0)}
 
+# A5 removed — bank-computed score, not a user input
 QUESTION_ORDER = []
-for _section, _codes in [("About you", ["A2", "A1", "A4", "A12"]),
-                         ("Work & stability", ["A8", "A3", "A6", "A7", "A11"]),
-                         ("Finances", ["A14", "A10", "A5", "A13", "A9"])]:
+for _section, _codes in [("About you",        ["A2", "A1", "A4", "A12"]),
+                          ("Work & stability", ["A8", "A3", "A6", "A7", "A11"]),
+                          ("Finances",         ["A14", "A10", "A13", "A9"])]:
     for _c in _codes:
         QUESTION_ORDER.append((_c, _section))
 
 CONTENT = {
-    0: {"name": "The Builder", "tier": "New-to-credit · Thin file",
+    0: {"name": "The Builder (House Cat)",  "tier": "New-to-credit · Thin file",
         "meaning": "You look like someone early in their credit journey, with a light track record "
                    "for lenders to read. Approvals are tougher and starting limits are modest — but "
                    "this is also the most improvable place to be.",
@@ -149,7 +193,7 @@ CONTENT = {
         "matters": ["On-time payments are the single biggest driver from here.",
                     "A secured card lets your deposit set the limit, so you control it.",
                     "Keeping balances under ~30% of the limit builds score fastest."]},
-    2: {"name": "The Quiet File", "tier": "Near-prime · Light history",
+    2: {"name": "The Quiet File (Lynx)",    "tier": "Near-prime · Light history",
         "meaning": "You resemble applicants with relatively little recent activity on file. There's a "
                    "foundation, but not much fresh signal — so approvals can be a coin-flip and limits "
                    "stay cautious until there's more history.",
@@ -157,14 +201,14 @@ CONTENT = {
         "matters": ["Small, regular, fully-paid activity adds the recent signal lenders want.",
                     "A starter card used lightly and paid in full reads well over time.",
                     "Utilization under 30% matters even at lower limits."]},
-    1: {"name": "The Established", "tier": "Prime",
+    1: {"name": "The Established (Tiger)",  "tier": "Prime",
         "meaning": "You resemble applicants with an active, healthy record. You're in the range most "
                    "mainstream cards are designed for, with solid approval odds and room to grow.",
         "limit": "$3,000 – $10,000", "cards": "Standard unsecured cards, with rewards cards in reach",
         "matters": ["Strong approval odds for mainstream cards.",
                     "A credit-line increase after 6–12 clean months is common.",
                     "Low utilization keeps you trending toward super-prime."]},
-    3: {"name": "The Veteran", "tier": "Super-prime · Seasoned",
+    3: {"name": "The Veteran (Bengal)",     "tier": "Super-prime · Seasoned",
         "meaning": "You resemble the lowest-risk tier — a long, deep credit history. Approvals are "
                    "typically easy and limits are the highest, often well above the national average.",
         "limit": "$10,000+", "cards": "Rewards & premium cards, highest limits",
@@ -174,17 +218,15 @@ CONTENT = {
 }
 NAMES = {cid: CONTENT[cid]["name"] for cid in CONTENT}
 INTENT_INTRO = {"understand": "Here's a clear look at your profile.",
-                "similar": "Here are the people most similar to you.",
-                "explore": "Here's what we found."}
+                "similar":    "Here are the people most similar to you.",
+                "explore":    "Here's what we found."}
 
-# plain-language translation of each actionable feature gap
 ADVICE = {
-    "A8": "Being employed — it's far more common in {nxt}.",
-    "A3": "A longer, steadier work history (time and consistency help).",
-    "A7": "More time at a stable address.",
+    "A8":  "Being employed — it's far more common in {nxt}.",
+    "A3":  "A longer, steadier work history (time and consistency help).",
+    "A7":  "More time at a stable address.",
     "A14": "Higher reported income — {nxt} applicants tend to earn more.",
 }
-# the real, proven credit habits for someone in this segment
 LEVERS = {
     0: ["Pay every bill on time — it's the single biggest factor, by far.",
         "Get a secured or starter card and put one small bill on it.",
@@ -200,6 +242,74 @@ LEVERS = {
         "Compare premium cards for perks you'd actually use."],
 }
 
+CLUSTER_INSIGHTS = {
+    0: {
+        "headline": "You're at the start of your financial story — and that's okay.",
+        "what_it_means": (
+            "Most people in your cluster are young, early in their careers, and haven't had much time "
+            "to build a credit track record yet. Your credit balance is already showing up, which means "
+            "you're engaging with credit — but employment tenure and income are still thin. Historically, "
+            "only about 1 in 5 applicants in this group were approved, not because they're risky people, "
+            "but because the file just doesn't have enough history for lenders to feel confident yet."
+        ),
+        "move_tips": [
+            "Stay employed — even 1–2 more years of continuous employment meaningfully separates this cluster from the next one up.",
+            "Keep your credit balance low relative to your limit. The typical person who moves up carries a balance around $190, not zero and not maxed out.",
+            "Avoid any defaults at all costs. Only 12% of this cluster has a clean default record — that's the single biggest thing holding the group back.",
+        ],
+        "maintain_tip": None,
+    },
+    1: {
+        "headline": "You're in a strong position — your file is active and your record is clean.",
+        "what_it_means": (
+            "People in your cluster are employed, have a solid employment history of around 3 years, "
+            "carry a modest credit balance, and almost universally have no prior defaults. That combination "
+            "earns an 80% historical approval rate. You're not at the top yet — that requires significantly "
+            "more tenure and stability — but you're well above average."
+        ),
+        "move_tips": [
+            "Time is your main lever here. The Veteran (Bengal) cluster looks almost identical to yours except they're 25 years older with 10 years of employment. Consistency over time is what separates the two.",
+            "Keep your debt load manageable. The typical person in your group carries about $4K in debt — not zero, but not overwhelming relative to income.",
+        ],
+        "maintain_tip": (
+            "Don't let your default record slip. 96% of your cluster has a clean history — "
+            "that's the foundation everything else is built on. Protect it."
+        ),
+    },
+    2: {
+        "headline": "Your file exists, but lenders can't quite read it yet.",
+        "what_it_means": (
+            "This is the most mixed cluster in the dataset. People here are slightly older than average, "
+            "but employment is inconsistent — only about 44% are currently employed — and income is very "
+            "low. Credit balance sits at zero, which sounds good but can actually signal that lenders "
+            "don't have enough activity to judge you on. The 40% approval rate reflects that ambiguity: "
+            "you're not a clear no, but you're not a clear yes either."
+        ),
+        "move_tips": [
+            "Employment is the most urgent lever. Getting to and staying employed consistently is what separates this cluster from The Established (Tiger).",
+            "Start building a credit history deliberately — a small balance you pay off regularly gives lenders something to evaluate. Zero activity is harder to approve than modest, clean activity.",
+            "Avoid defaults. Only 26% of this cluster has a clean record, which is dragging the group's approval rate down significantly.",
+        ],
+        "maintain_tip": None,
+    },
+    3: {
+        "headline": "You've built exactly the kind of profile lenders trust most.",
+        "what_it_means": (
+            "Your cluster has the highest approval rate in the dataset at nearly 90%. The defining features "
+            "are time and consistency — a median age of 53, over 10 years of employment, 6+ years at the "
+            "same address, and an almost universally clean default record. Lenders read long tenure as low "
+            "risk, and your cluster is the proof. This isn't about income — your median income is actually "
+            "lower than The Established (Tiger) — it's about the story that decades of stability tells."
+        ),
+        "move_tips": None,
+        "maintain_tip": (
+            "Protect your default record above everything else — 90% of your cluster has never defaulted, "
+            "and that's the bedrock of your standing. Maintaining employment and residential stability is "
+            "what keeps you here. You've already done the hard work."
+        ),
+    },
+}
+
 
 def goto(page):
     st.session_state.page = page
@@ -207,7 +317,6 @@ def goto(page):
 
 
 def top_bar():
-    """White header: cat logo + spaced nav buttons + red CTA — on every page."""
     cols = st.columns([1.7, 0.8, 1.3, 1.4, 1.5])
     cols[0].markdown(f'<div style="display:flex;align-items:center;gap:.4rem;">{LOGO_SVG}'
                      f'<span class="logo">Credit<b>Cat</b></span></div>', unsafe_allow_html=True)
@@ -270,10 +379,10 @@ def landing():
                      f'<div class="d">{d}</div></div>', unsafe_allow_html=True)
 
     st.markdown('<p class="section-h">What you\'ll learn</p>', unsafe_allow_html=True)
-    learn = [("Where you fit", "Which of four credit segments you most resemble — and how clearly."),
-             ("What you might get", "Typical starting credit-limit ranges and card types for that profile."),
+    learn = [("Where you fit",         "Which of four credit segments you most resemble — and how clearly."),
+             ("What you might get",    "Typical starting credit-limit ranges and card types for that profile."),
              ("What actually matters", "The few things that move a profile like yours forward."),
-             ("How typical you are", "Whether you're squarely in your group or sitting between two.")]
+             ("How typical you are",   "Whether you're squarely in your group or sitting between two.")]
     cells = list(st.columns(2)) + list(st.columns(2))
     for col, (t, d) in zip(cells, learn):
         col.markdown(f'<div class="learn"><div class="t">{t}</div><div class="d">{d}</div></div>',
@@ -306,8 +415,8 @@ def intent():
     with st.container(border=True):
         st.markdown('<p class="q-title">What brings you here?</p>', unsafe_allow_html=True)
         for key, label in [("understand", "Understand my profile"),
-                           ("similar", "See who's similar to me"),
-                           ("explore", "I'm just exploring")]:
+                           ("similar",    "See who's similar to me"),
+                           ("explore",    "I'm just exploring")]:
             if st.button(label, use_container_width=True, key=f"intent_{key}"):
                 st.session_state.intent = key
                 st.session_state.qidx = 0
@@ -317,39 +426,42 @@ def intent():
 
 
 def render_widget(code):
-    label = FRIENDLY[code].split(" (")[0].replace("_", " ")
     cur = st.session_state.answers[code]
-    if code in BINARY:
-        val = st.selectbox(label, [0, 1], index=[0, 1].index(int(cur)), label_visibility="collapsed",
-                           help="Coded 0/1; the exact meaning of each value isn't disclosed in the data.")
+
+    if code in READABLE_OPTIONS:
+        opts         = READABLE_OPTIONS[code]
+        option_list  = list(opts.keys())
+        display_list = [opts[k] for k in option_list]
+        cur_int      = int(cur)
+        cur_idx      = option_list.index(cur_int) if cur_int in option_list else 0
+        chosen       = st.selectbox("", display_list, index=cur_idx, label_visibility="collapsed")
+        val          = option_list[display_list.index(chosen)]
     elif code in CATEG:
         opts = CAT_OPTS[code]
-        idx = opts.index(int(cur)) if int(cur) in opts else 0
-        val = st.selectbox(label, opts, index=idx, label_visibility="collapsed")
+        idx  = opts.index(int(cur)) if int(cur) in opts else 0
+        val  = st.selectbox("", opts, index=idx, label_visibility="collapsed")
     else:
         lo, hi = RANGES[code]
-        val = st.number_input(label, lo, hi, float(min(max(cur, lo), hi)), label_visibility="collapsed")
+        val    = st.number_input("", lo, hi, float(min(max(cur, lo), hi)),
+                                 label_visibility="collapsed")
+
     st.session_state.answers[code] = val
 
 
 def questionnaire():
-    qidx = st.session_state.qidx
+    qidx  = st.session_state.qidx
     total = len(QUESTION_ORDER)
     code, section = QUESTION_ORDER[qidx]
-    last = qidx == total - 1
+    last  = qidx == total - 1
     st.markdown("<style>.block-container{animation:fadeUp .35s ease;}</style>", unsafe_allow_html=True)
 
     top_bar()
     st.markdown(f'<p class="eyebrow">{section} · Question {qidx + 1} of {total}</p>', unsafe_allow_html=True)
     st.markdown(dots_html(qidx, total), unsafe_allow_html=True)
 
-    label = FRIENDLY[code].split(" (")[0].replace("_", " ")
-    note = FRIENDLY[code][FRIENDLY[code].find("(") + 1:-1] if "(" in FRIENDLY[code] else ""
     with st.container(border=True):
-        st.markdown(f'<p class="q-title">{label}</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="q-title">{QUESTION_LABELS.get(code, code)}</p>', unsafe_allow_html=True)
         render_widget(code)
-        if note:
-            st.caption("⚠️ " + note)
 
     c1, c2 = st.columns(2)
     if c1.button("← Back", use_container_width=True, key="q_back"):
@@ -358,7 +470,8 @@ def questionnaire():
         else:
             st.session_state.qidx -= 1
             st.rerun()
-    if c2.button("See my results →" if last else "Next →", type="primary", use_container_width=True, key="q_next"):
+    if c2.button("See my results →" if last else "Next →", type="primary",
+                 use_container_width=True, key="q_next"):
         if last:
             goto("paywall")
         else:
@@ -392,11 +505,12 @@ def paywall():
 # Results — dashboard
 # ---------------------------------------------------------------------------
 def results():
-    raw = st.session_state.answers
-    cid = backend.assign_cluster(raw)
-    info = backend.get_cluster_info(cid)
-    typ = backend.typicality(raw)
-    c = CONTENT[cid]
+    raw     = st.session_state.answers
+    cid     = backend.assign_cluster(raw)
+    info    = backend.get_cluster_info(cid)
+    typ     = backend.typicality(raw)
+    c       = CONTENT[cid]
+    insight = CLUSTER_INSIGHTS[cid]
 
     top_bar()
     st.markdown(f'<p class="eyebrow">{INTENT_INTRO[st.session_state.intent]}</p>', unsafe_allow_html=True)
@@ -406,9 +520,9 @@ def results():
         st.markdown(f'<p class="result-name">{c["name"]}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="panel-text">{c["meaning"]}</p>', unsafe_allow_html=True)
 
-    # ---- Your next move: realistic, actionable recommendations (front & center) ----
-    ia = backend.improvement_areas(raw)
-    order = [0, 2, 1, 3]  # segments by approval, low -> high
+    # ---- Your next move ----
+    ia        = backend.improvement_areas(raw)
+    seg_order = [0, 2, 1, 3]
 
     def chip(seg):
         cls = "chip"
@@ -418,7 +532,7 @@ def results():
             cls += " nxt"
         return f'<span class="{cls}">{CONTENT[seg]["name"]}</span>'
 
-    ladder = '<div class="ladder">' + '<span class="arrow">›</span>'.join(chip(s) for s in order) + '</div>'
+    ladder = '<div class="ladder">' + '<span class="arrow">›</span>'.join(chip(s) for s in seg_order) + '</div>'
 
     if ia["next"] is None:
         body = '<p class="t">🏆 You\'re in the top tier</p>' + ladder
@@ -458,7 +572,7 @@ def results():
         ux, uy = backend.map_position(raw)
         fig, ax = plt.subplots(figsize=(6, 4.6))
         for cc in sorted(set(labels)):
-            m = labels == cc
+            m   = labels == cc
             own = int(cc) == cid
             ax.scatter(coords[m, 0], coords[m, 1],
                        s=22 if own else 14, alpha=0.9 if own else 0.18,
@@ -486,6 +600,24 @@ def results():
                         "a bit of a blend between the two. That's just where you land, not something you "
                         "need to change.</p>", unsafe_allow_html=True)
 
+    # ---- Cluster Insight ----
+    with st.container(border=True):
+        st.markdown('<p class="sec-title">What this really means for you</p>', unsafe_allow_html=True)
+        tips_html = ""
+        if insight["move_tips"]:
+            tips_html += '<p class="tip-head">What moves the needle</p><ul>' + \
+                         "".join(f"<li>{t}</li>" for t in insight["move_tips"]) + '</ul>'
+        if insight["maintain_tip"]:
+            tips_html += f'<p class="tip-head">How to stay here</p><ul><li>{insight["maintain_tip"]}</li></ul>'
+        st.markdown(
+            f'<div class="insight-box">'
+            f'<div class="headline">{insight["headline"]}</div>'
+            f'<div class="body">{insight["what_it_means"]}</div>'
+            f'{tips_html}'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+
     st.markdown('<div class="caveat">Limit ranges and card types above are <b>general industry context</b> '
                 'for similar profiles — they vary by lender and income, and are <b>not</b> an offer, a score, '
                 'or a prediction for you. The historical approval figure reflects past human lending '
@@ -495,14 +627,14 @@ def results():
     c1, c2 = st.columns(2)
     if c1.button("Start over", key="res_restart"):
         st.session_state.answers = backend.defaults()
-        st.session_state.qidx = 0
+        st.session_state.qidx    = 0
         goto("landing")
     with c2.popover("Try an example", use_container_width=True):
         st.caption("Jump to a profile from each tier:")
         for seg in [0, 2, 1, 3]:
             if st.button(CONTENT[seg]["name"], use_container_width=True, key=f"ex_res_{seg}"):
                 st.session_state.answers = backend.list_examples()[seg].copy()
-                st.session_state.intent = "explore"
+                st.session_state.intent  = "explore"
                 goto("results")
     footer()
 
