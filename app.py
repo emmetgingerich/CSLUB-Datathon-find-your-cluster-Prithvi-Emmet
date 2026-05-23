@@ -1,15 +1,15 @@
 """
 app.py — Credit Cat (UI only).
 
-All model/data logic comes from backend.py. Display copy (cluster names, what each
-segment means, credit-limit context) lives in CONTENT below — presentation, not model
-logic, so the bundle is unchanged.
+All model/data logic comes from backend.py. Display copy lives in CONTENT below
+(presentation, not model logic), so the bundle is unchanged.
 
 Flow: Landing -> Intent -> Questionnaire (one at a time) -> Paywall -> Results (dashboard)
 Run from the repo root:  streamlit run app.py
 """
 
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import pandas as pd
 import streamlit as st
 
@@ -19,19 +19,38 @@ st.set_page_config(page_title="Credit Cat", page_icon="🐱", layout="centered")
 
 NAVY, RED, INK, MUTED, SURFACE = "#004977", "#D03027", "#11151C", "#6B7280", "#F7F8FA"
 
+# cluster colors: Builder=green, Established=blue, Quiet File=silver, Veteran=gold
+VIBRANT = {0: "#1F9E55", 1: "#2E7DD1", 2: "#9AA3AB", 3: "#E0A53B"}
+
+# brand cat logo (recolored to navy/red/white)
+LOGO_SVG = """
+<svg width="36" height="36" viewBox="0 0 64 64" style="vertical-align:middle;">
+  <path d="M15 19 L19 5 L31 16 Z" fill="#fff" stroke="#004977" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M49 19 L45 5 L33 16 Z" fill="#D03027" stroke="#004977" stroke-width="3" stroke-linejoin="round"/>
+  <ellipse cx="32" cy="38" rx="22" ry="19" fill="#fff" stroke="#004977" stroke-width="3"/>
+  <line x1="5" y1="37" x2="16" y2="38" stroke="#004977" stroke-width="2" stroke-linecap="round"/>
+  <line x1="5" y1="43" x2="16" y2="42" stroke="#004977" stroke-width="2" stroke-linecap="round"/>
+  <line x1="59" y1="37" x2="48" y2="38" stroke="#004977" stroke-width="2" stroke-linecap="round"/>
+  <line x1="59" y1="43" x2="48" y2="42" stroke="#004977" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="25" cy="36" r="3" fill="#004977"/>
+  <circle cx="39" cy="36" r="3" fill="#004977"/>
+  <circle cx="20" cy="43" r="3.2" fill="#F6B8C0"/>
+  <circle cx="44" cy="43" r="3.2" fill="#F6B8C0"/>
+  <path d="M30 41 L34 41 L32 44 Z" fill="#D03027"/>
+</svg>
+"""
+
 st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap');
 html, body, [class*="css"], .stMarkdown, .stButton button {{ font-family:'Archivo',sans-serif; }}
 #MainMenu, header, footer {{ visibility:hidden; }}
-.block-container {{ max-width:840px; padding-top:1.1rem; }}
+.block-container {{ max-width:880px; padding-top:1.1rem; }}
 @keyframes fadeUp {{ from {{opacity:0; transform:translateY(14px);}} to {{opacity:1; transform:translateY(0);}} }}
 h1,h2,h3 {{ color:{NAVY}; font-weight:800; letter-spacing:-0.02em; }}
 
-/* top header bar */
-.logo {{ font-weight:900; color:{NAVY}; font-size:1.3rem; letter-spacing:-0.02em; line-height:2.4rem; }}
+.logo {{ font-weight:900; color:{NAVY}; font-size:1.3rem; letter-spacing:-0.02em; }}
 .logo b {{ color:{RED}; }}
-.navlinks {{ color:{MUTED}; font-weight:600; font-size:.9rem; line-height:2.4rem; }}
 hr.rule {{ border:none; border-top:1px solid #E3E8EE; margin:.2rem 0 1.4rem; }}
 
 .eyebrow {{ color:{RED}; font-weight:700; letter-spacing:.12em; text-transform:uppercase; font-size:.76rem; margin-bottom:.3rem; }}
@@ -58,6 +77,9 @@ hr.rule {{ border:none; border-top:1px solid #E3E8EE; margin:.2rem 0 1.4rem; }}
 .sec-title {{ font-size:1.15rem; font-weight:800; color:{NAVY}; border-left:4px solid {RED}; padding-left:.6rem; margin:.1rem 0 1rem; }}
 .q-title {{ font-size:1.7rem; font-weight:800; color:{NAVY}; margin:.2rem 0 .9rem; letter-spacing:-0.02em; }}
 
+.pay-title {{ font-size:3rem; color:{NAVY}; font-weight:900; line-height:1.04; letter-spacing:-0.03em; margin:.3rem 0 .2rem; }}
+.pay-sub {{ font-size:1.15rem; color:{MUTED}; margin:0 0 1.2rem; }}
+
 .result-name {{ font-size:2.6rem; color:{NAVY}; font-weight:900; line-height:1.05; letter-spacing:-0.02em; }}
 .badge {{ display:inline-block; background:{NAVY}; color:#fff; font-weight:700; font-size:.78rem;
   letter-spacing:.04em; padding:.25rem .7rem; border-radius:999px; }}
@@ -71,7 +93,7 @@ hr.rule {{ border:none; border-top:1px solid #E3E8EE; margin:.2rem 0 1.4rem; }}
 .dot {{ width:11px; height:11px; border-radius:50%; background:#CFE3EE; transition:background .35s ease; }}
 .dot.on {{ background:#2E8BC0; }}
 
-.stButton>button {{ border-radius:999px; font-weight:600; padding:.5rem 1.3rem; border:1.5px solid {NAVY}; color:{NAVY}; background:#fff; }}
+.stButton>button {{ border-radius:999px; font-weight:600; padding:.5rem 1.2rem; border:1.5px solid {NAVY}; color:{NAVY}; background:#fff; }}
 .stButton>button:hover {{ color:#fff; background:{NAVY}; }}
 .stButton>button[kind="primary"] {{ background:{RED}; border-color:{RED}; color:#fff; }}
 .stButton>button[kind="primary"]:hover {{ background:#b1271f; border-color:#b1271f; }}
@@ -142,7 +164,6 @@ NAMES = {cid: CONTENT[cid]["name"] for cid in CONTENT}
 INTENT_INTRO = {"understand": "Here's a clear look at your profile.",
                 "similar": "Here are the people most similar to you.",
                 "explore": "Here's what we found."}
-CLUSTER_PALETTE = {0: "#9CC3D5", 1: "#4A90A4", 2: "#C9CDD2", 3: "#1F5C73"}
 
 
 def goto(page):
@@ -151,12 +172,17 @@ def goto(page):
 
 
 def top_bar():
-    """White header bar with logo + nav + CTA — rendered on every page."""
-    left, right = st.columns([3, 1.2])
-    left.markdown('<span class="logo">🐱 Credit<b>Cat</b></span>'
-                  '<span class="navlinks">&nbsp;&nbsp;&nbsp;Home&nbsp;·&nbsp;How it works&nbsp;·&nbsp;Why Credit Cat</span>',
-                  unsafe_allow_html=True)
-    if right.button("Find my cluster", type="primary", use_container_width=True, key="nav_cta"):
+    """White header: cat logo + spaced nav buttons + red CTA — on every page."""
+    cols = st.columns([1.7, 0.8, 1.3, 1.4, 1.5])
+    cols[0].markdown(f'<div style="display:flex;align-items:center;gap:.4rem;">{LOGO_SVG}'
+                     f'<span class="logo">Credit<b>Cat</b></span></div>', unsafe_allow_html=True)
+    if cols[1].button("Home", use_container_width=True, key="nav_home"):
+        goto("landing")
+    if cols[2].button("How it works", use_container_width=True, key="nav_how"):
+        goto("landing")
+    if cols[3].button("Why Credit Cat", use_container_width=True, key="nav_why"):
+        goto("landing")
+    if cols[4].button("Find my cluster", type="primary", use_container_width=True, key="nav_cta"):
         st.session_state.qidx = 0
         goto("intent")
     st.markdown('<hr class="rule">', unsafe_allow_html=True)
@@ -305,10 +331,10 @@ def questionnaire():
 def paywall():
     top_bar()
     st.markdown('<p class="eyebrow">Almost there</p>', unsafe_allow_html=True)
+    st.markdown('<p class="pay-title">Your profile is<br>almost ready 🐱</p>', unsafe_allow_html=True)
+    st.markdown('<p class="pay-sub">Unlock the full breakdown — or keep going for free.</p>', unsafe_allow_html=True)
     with st.container(border=True):
-        st.markdown('<p class="sec-title">Your profile is ready</p>', unsafe_allow_html=True)
-        st.markdown('<div class="card"><div class="kpi" style="display:inline-block;background:transparent;padding:0;">'
-                    '<span class="v">$4.99</span></div>'
+        st.markdown('<div class="card"><p style="font-size:2.2rem;color:#004977;font-weight:900;margin:0;">$4.99</p>'
                     '<p style="margin:.4rem 0;"><b>Unlock your full breakdown</b></p>'
                     '<ul class="matters"><li>Your segment and what it means</li>'
                     '<li>Typical credit-limit range &amp; card types</li>'
@@ -337,13 +363,11 @@ def results():
     top_bar()
     st.markdown(f'<p class="eyebrow">{INTENT_INTRO[st.session_state.intent]}</p>', unsafe_allow_html=True)
 
-    # header panel
     with st.container(border=True):
         st.markdown(f'<span class="badge">{c["tier"]}</span>', unsafe_allow_html=True)
         st.markdown(f'<p class="result-name">{c["name"]}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="panel-text">{c["meaning"]}</p>', unsafe_allow_html=True)
 
-    # KPI row
     k1, k2, k3 = st.columns(3)
     k1.markdown(f'<div class="kpi"><div class="l">Typical starting limit</div>'
                 f'<div class="v">{c["limit"]}</div><div class="s">general range for similar profiles</div></div>',
@@ -355,7 +379,6 @@ def results():
                 f'<div class="v" style="font-size:1.25rem;">{typ["label"].title()}</div>'
                 f'<div class="s">within your group</div></div>', unsafe_allow_html=True)
 
-    # two panels: what matters | likely cards
     p1, p2 = st.columns([1.4, 1])
     with p1.container(border=True):
         st.markdown('<p class="sec-title">What actually matters from here</p>', unsafe_allow_html=True)
@@ -365,23 +388,31 @@ def results():
         st.markdown('<p class="sec-title">Likely cards</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="panel-text">{c["cards"]}</p>', unsafe_allow_html=True)
 
-    # map panel
     with st.container(border=True):
         st.markdown('<p class="sec-title">You are here</p>', unsafe_allow_html=True)
-        st.caption("Every applicant in the data, mapped to 2-D. The red star is you.")
+        st.caption("Every applicant in the data, mapped to 2-D. Your cluster is highlighted; the red star is you.")
         coords, labels = backend.get_training_map()
         ux, uy = backend.map_position(raw)
         fig, ax = plt.subplots(figsize=(6, 4.6))
         for cc in sorted(set(labels)):
             m = labels == cc
-            ax.scatter(coords[m, 0], coords[m, 1], s=15, alpha=0.55,
-                       color=CLUSTER_PALETTE.get(int(cc), "#999"), label=NAMES[int(cc)])
-        ax.scatter([ux], [uy], s=320, marker="*", color=RED, edgecolor="white",
-                   linewidth=1.3, zorder=5, label="You")
+            own = int(cc) == cid
+            ax.scatter(coords[m, 0], coords[m, 1],
+                       s=22 if own else 14, alpha=0.9 if own else 0.18,
+                       color=VIBRANT[int(cc)],
+                       edgecolor="white" if own else "none", linewidth=0.4 if own else 0,
+                       zorder=3 if own else 1)
+        ax.scatter([ux], [uy], s=340, marker="*", color=RED, edgecolor="white",
+                   linewidth=1.4, zorder=5)
         ax.set_xticks([]); ax.set_yticks([])
         for sp in ax.spines.values():
             sp.set_visible(False)
-        ax.legend(loc="best", fontsize=8, frameon=False)
+        handles = [Line2D([0], [0], marker="o", linestyle="", markersize=7,
+                          markerfacecolor=VIBRANT[i], markeredgecolor="none", label=NAMES[i])
+                   for i in sorted(VIBRANT)]
+        handles.append(Line2D([0], [0], marker="*", linestyle="", markersize=12,
+                              markerfacecolor=RED, markeredgecolor="white", label="You"))
+        ax.legend(handles=handles, loc="best", fontsize=8, frameon=False)
         fig.tight_layout()
         st.pyplot(fig)
 
@@ -392,10 +423,10 @@ def results():
                         "a bit of a blend between the two. That's just where you land, not something you "
                         "need to change.</p>", unsafe_allow_html=True)
 
-    st.markdown(f'<div class="caveat">Limit ranges and card types above are <b>general industry context</b> '
-                f'for similar profiles — they vary by lender and income, and are <b>not</b> an offer, a score, '
-                f'or a prediction for you. The historical approval figure reflects past human lending '
-                f'decisions, which may carry bias.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="caveat">Limit ranges and card types above are <b>general industry context</b> '
+                'for similar profiles — they vary by lender and income, and are <b>not</b> an offer, a score, '
+                'or a prediction for you. The historical approval figure reflects past human lending '
+                'decisions, which may carry bias.</div>', unsafe_allow_html=True)
 
     st.write("")
     c1, c2 = st.columns(2)
