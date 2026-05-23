@@ -21,7 +21,7 @@ _FRIENDLY_TO_A = {
     "Gender": "A1", "Age": "A2", "Years_Employed": "A3", "Marital_Status": "A4",
     "Creditworthiness_Tier": "A5", "Occupation": "A6", "Years_at_Address": "A7",
     "Currently_Employed": "A8", "Prior_Default": "A9", "Debt_Thousands": "A10",
-    "Drivers_License": "A11", "Citizenship_Status": "A12", "Zip_Code": "A13",
+    "Drivers_License": "A11", "Citizenship_Status": "A12", "Credit Balance": "A13",
     "Annual_Income": "A14",
 }
 
