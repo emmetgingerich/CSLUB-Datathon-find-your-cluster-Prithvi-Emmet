@@ -102,6 +102,17 @@ hr.rule {{ border:none; border-top:1px solid #E3E8EE; margin:.2rem 0 1.4rem; }}
 ul.matters {{ margin:.3rem 0 0; padding-left:1.1rem; color:{INK}; }}
 ul.matters li {{ margin:.35rem 0; line-height:1.45; }}
 .foot {{ color:{MUTED}; font-size:.8rem; text-align:center; margin:2.4rem 0 .5rem; line-height:1.5; }}
+.move {{ background:#EAF1F6; border-left:5px solid {RED}; border-radius:16px; padding:1.3rem 1.5rem; margin:.4rem 0 1rem; }}
+.move .t {{ color:{NAVY}; font-weight:900; font-size:1.55rem; margin:0 0 .4rem; letter-spacing:-0.02em; }}
+.move .h {{ color:{NAVY}; font-weight:800; margin:.9rem 0 .1rem; font-size:.95rem; }}
+.move ul {{ margin:.2rem 0 0; padding-left:1.1rem; }}
+.move li {{ margin:.32rem 0; color:{INK}; line-height:1.45; }}
+.move .note {{ color:{MUTED}; font-size:.8rem; margin:.8rem 0 0; }}
+.ladder {{ display:flex; align-items:center; gap:.35rem; flex-wrap:wrap; margin:.1rem 0 .4rem; }}
+.chip {{ font-size:.78rem; font-weight:700; padding:.22rem .6rem; border-radius:999px; border:1.5px solid #C7D2DC; color:{MUTED}; background:#fff; }}
+.chip.cur {{ background:{NAVY}; color:#fff; border-color:{NAVY}; }}
+.chip.nxt {{ border-color:{RED}; color:{RED}; }}
+.arrow {{ color:#9AA9B5; font-weight:800; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -164,6 +175,29 @@ NAMES = {cid: CONTENT[cid]["name"] for cid in CONTENT}
 INTENT_INTRO = {"understand": "Here's a clear look at your profile.",
                 "similar": "Here are the people most similar to you.",
                 "explore": "Here's what we found."}
+
+# plain-language translation of each actionable feature gap
+ADVICE = {
+    "A8": "Being employed — it's far more common in {nxt}.",
+    "A3": "A longer, steadier work history (time and consistency help).",
+    "A7": "More time at a stable address.",
+    "A14": "Higher reported income — {nxt} applicants tend to earn more.",
+}
+# the real, proven credit habits for someone in this segment
+LEVERS = {
+    0: ["Pay every bill on time — it's the single biggest factor, by far.",
+        "Get a secured or starter card and put one small bill on it.",
+        "Keep balances under ~30% of the limit, and let accounts age."],
+    2: ["Put one small recurring bill on a card and autopay it in full.",
+        "Keep at least one account active and in good standing.",
+        "Keep utilization under ~30%, even at a low limit."],
+    1: ["After 6–12 on-time months, ask for a credit-line increase.",
+        "Keep utilization low to keep trending toward the top tier.",
+        "Avoid opening several new accounts at once."],
+    3: ["Keep your on-time streak going — it protects the top tier.",
+        "Your high limits keep utilization low; maintain that.",
+        "Compare premium cards for perks you'd actually use."],
+}
 
 
 def goto(page):
@@ -368,6 +402,36 @@ def results():
         st.markdown(f'<p class="result-name">{c["name"]}</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="panel-text">{c["meaning"]}</p>', unsafe_allow_html=True)
 
+    # ---- Your next move: realistic, actionable recommendations (front & center) ----
+    ia = backend.improvement_areas(raw)
+    order = [0, 2, 1, 3]  # segments by approval, low -> high
+
+    def chip(seg):
+        cls = "chip"
+        if seg == cid:
+            cls += " cur"
+        elif ia["next"] is not None and seg == ia["next"]:
+            cls += " nxt"
+        return f'<span class="{cls}">{CONTENT[seg]["name"]}</span>'
+
+    ladder = '<div class="ladder">' + '<span class="arrow">›</span>'.join(chip(s) for s in order) + '</div>'
+
+    if ia["next"] is None:
+        body = '<p class="t">🏆 You\'re in the top tier</p>' + ladder
+        body += '<p class="h">How to keep your standing</p><ul>' + \
+                "".join(f"<li>{l}</li>" for l in LEVERS[cid]) + '</ul>'
+    else:
+        nxt_name = CONTENT[ia["next"]]["name"]
+        body = f'<p class="t">Your next move → {nxt_name}</p>' + ladder
+        if ia["areas"]:
+            body += f'<p class="h">Where {nxt_name} applicants tend to be stronger</p><ul>' + \
+                    "".join(f"<li>{ADVICE[f].format(nxt=nxt_name)}</li>" for f in ia["areas"]) + '</ul>'
+        body += '<p class="h">The habits that actually move this</p><ul>' + \
+                "".join(f"<li>{l}</li>" for l in LEVERS[cid]) + '</ul>'
+    body += '<p class="note">General guidance for similar profiles — legitimate financial habits, ' \
+            'not a guarantee or a way to "game" an application.</p>'
+    st.markdown(f'<div class="move">{body}</div>', unsafe_allow_html=True)
+
     k1, k2, k3 = st.columns(3)
     k1.markdown(f'<div class="kpi"><div class="l">Typical starting limit</div>'
                 f'<div class="v">{c["limit"]}</div><div class="s">general range for similar profiles</div></div>',
@@ -379,13 +443,8 @@ def results():
                 f'<div class="v" style="font-size:1.25rem;">{typ["label"].title()}</div>'
                 f'<div class="s">within your group</div></div>', unsafe_allow_html=True)
 
-    p1, p2 = st.columns([1.4, 1])
-    with p1.container(border=True):
-        st.markdown('<p class="sec-title">What actually matters from here</p>', unsafe_allow_html=True)
-        st.markdown('<ul class="matters">' + "".join(f"<li>{m}</li>" for m in c["matters"]) + '</ul>',
-                    unsafe_allow_html=True)
-    with p2.container(border=True):
-        st.markdown('<p class="sec-title">Likely cards</p>', unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown('<p class="sec-title">Likely cards for this profile</p>', unsafe_allow_html=True)
         st.markdown(f'<p class="panel-text">{c["cards"]}</p>', unsafe_allow_html=True)
 
     with st.container(border=True):

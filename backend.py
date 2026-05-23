@@ -169,3 +169,43 @@ def random_applicant():
     b, df = _b(), _load_data()
     s = df[ALL_FEATURES].sample(1).iloc[0]
     return {c: (float(s[c]) if c in b["continuous_cols"] else int(s[c])) for c in ALL_FEATURES}
+
+
+# ---------------------------------------------------------------------------
+# Recommendations: realistic, actionable steps toward the next segment up.
+# Direction comes from the DATA (how the next group differs on changeable
+# features); the advice itself is grounded in real credit behaviour.
+# Only mutable, realistic features — never age, gender, marital status, etc.
+# ---------------------------------------------------------------------------
+ACTIONABLE = ["A8", "A3", "A7", "A14"]  # employed, years employed, years at address, income
+
+
+def next_cluster_up(cid):
+    """The segment with the next-higher historical approval rate (None if top)."""
+    rates = _b()["approval_rates"]
+    order = sorted(rates, key=lambda c: rates[c])  # ascending approval
+    i = order.index(cid)
+    return order[i + 1] if i < len(order) - 1 else None
+
+
+def improvement_areas(raw):
+    """Actionable features where the next segment up tends to be stronger than this user."""
+    cid = assign_cluster(raw)
+    nxt = next_cluster_up(cid)
+    if nxt is None:
+        return {"cid": cid, "next": None, "areas": []}
+    typ = list_examples()[nxt]                       # typical member of the next segment
+    full = defaults()
+    full.update({k: v for k, v in raw.items() if k in ALL_FEATURES})
+    scored = []
+    for f in ACTIONABLE:
+        uv, tv = float(full[f]), float(typ[f])
+        if f == "A8":                                # binary: being employed
+            if int(uv) == 0 and int(tv) == 1:
+                scored.append((100.0, f))
+        else:                                        # continuous: meaningfully below
+            gap = tv - uv
+            if gap > 0.1 * (abs(tv) + 1):
+                scored.append((gap / (abs(tv) + 1), f))
+    scored.sort(reverse=True)
+    return {"cid": cid, "next": nxt, "areas": [f for _, f in scored][:3]}
